@@ -1,8 +1,8 @@
-import './style.css'
-import javascriptLogo from './assets/javascript.svg'
-import viteLogo from './assets/vite.svg'
-import heroImg from './assets/hero.png'
-import { setupCounter } from './counter.js'
+import './style.css';
+import javascriptLogo from './assets/javascript.svg';
+import viteLogo from './assets/vite.svg';
+import heroImg from './assets/hero.png';
+import { setupCounter } from './counter.js';
 
 document.querySelector('#app').innerHTML = `
 <section id="center">
@@ -55,6 +55,6 @@ document.querySelector('#app').innerHTML = `
 
 <div class="ticks"></div>
 <section id="spacer"></section>
-`
-console.log("Task Manager started юху");
-setupCounter(document.querySelector('#counter'))
+`;
+console.log('Task Manager started юху');
+setupCounter(document.querySelector('#counter'));
