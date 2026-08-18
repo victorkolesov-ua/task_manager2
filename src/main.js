@@ -69,18 +69,14 @@ app.innerHTML = `
         </div>
       </div>
 
-      <div class="table-wrapper">
-        <table>
-          <thead>
-            <tr>
-              <th>Опис задачі</th>
-              <th>Заплановано</th>
-              <th>Виконано</th>
-              <th>Дії</th>
-            </tr>
-          </thead>
-          <tbody id="tasks-body"></tbody>
-        </table>
+      <div class="task-grid">
+        <div class="task-grid-header" aria-hidden="true">
+          <span>Опис задачі</span>
+          <span>Заплановано</span>
+          <span>Виконано</span>
+          <span>Дії</span>
+        </div>
+        <div id="tasks-body" class="tasks-body"></div>
       </div>
     </section>
   </div>
@@ -162,13 +158,16 @@ function formatDate(value) {
     return value;
   }
 
-  return new Intl.DateTimeFormat('uk-UA', {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit'
-  }).format(date);
+  const pad = (part) => String(part).padStart(2, '0');
+
+  return [
+    pad(date.getDate()),
+    pad(date.getMonth() + 1),
+    date.getFullYear()
+  ].join('/') + ' ' + [
+    pad(date.getHours()),
+    pad(date.getMinutes())
+  ].join(':');
 }
 
 function updateStats() {
@@ -199,9 +198,7 @@ function renderTasks() {
 
   if (!visibleTasks.length) {
     tasksBody.innerHTML = `
-      <tr class="empty-row">
-        <td colspan="4">Немає задач за вашим запитом.</td>
-      </tr>
+      <div class="empty-row">Немає задач за вашим запитом.</div>
     `;
     return;
   }
@@ -209,10 +206,10 @@ function renderTasks() {
   tasksBody.innerHTML = visibleTasks
     .map(
       (task) => `
-        <tr>
-          <td class="description-cell">${escapeHtml(task.description)}</td>
-          <td>${formatDate(task.scheduledAt)}</td>
-          <td class="checkbox-cell">
+        <div class="task-row">
+          <div class="description-cell">${escapeHtml(task.description)}</div>
+          <div class="scheduled-cell">${formatDate(task.scheduledAt)}</div>
+          <div class="checkbox-cell">
             <label class="toggle-wrapper">
               <input
                 type="checkbox"
@@ -221,12 +218,12 @@ function renderTasks() {
                 ${task.completed ? 'checked' : ''}
               />
             </label>
-          </td>
-          <td class="actions-cell">
+          </div>
+          <div class="actions-cell">
             <button type="button" class="secondary-btn" data-action="edit-task" data-id="${task.id}">Редагувати</button>
             <button type="button" class="danger-btn" data-action="delete-task" data-id="${task.id}">Видалити</button>
-          </td>
-        </tr>
+          </div>
+        </div>
       `,
     )
     .join('');
