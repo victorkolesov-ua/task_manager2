@@ -4,15 +4,16 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "concurrently \"node server.js\" \"vite --host\"",
+    "dev": "vite --host",
     "server": "node server.js",
     "lint": "eslint .",
     "build": "vite build",
-    "preview": "concurrently \"node server.js\" \"vite preview --host --port 4173\"",
+    "preview": "vite preview --host --port 4173",
     "format": "prettier . --write",
     "format:check": "prettier . --check"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.55.0",
     "express": "^5.1.0"
   },
   "devDependencies": {

@@ -1,6 +1,18 @@
+import { createClient } from '@supabase/supabase-js';
 import './style.css';
 
-const STORAGE_PATH = '/api/tasks';
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+const supabase =
+  supabaseUrl && supabaseAnonKey
+    ? createClient(supabaseUrl, supabaseAnonKey, {
+      auth: {
+        persistSession: false,
+        autoRefreshToken: false,
+      },
+    })
+    : null;
 
 const app = document.querySelector('#app');
 
@@ -94,39 +106,71 @@ const clearAllButton = document.querySelector('#clear-all-btn');
 const activeCount = document.querySelector('#active-count');
 const completedCount = document.querySelector('#completed-count');
 
+function normalizeTask(row = {}) {
+  return {
+    id: row.id,
+    description: String(row.description ?? '').trim(),
+    scheduledAt: row.scheduled_at ?? row.scheduledAt ?? '',
+    completed: Boolean(row.completed),
+  };
+}
+
 async function loadTasks() {
+  if (!supabase) {
+    tasks = [];
+    return;
+  }
+
   try {
-    const response = await fetch(STORAGE_PATH, { cache: 'no-store' });
-    if (!response.ok) {
-      tasks = [];
-      return;
+    const { data, error } = await supabase.from('tasks').select('*');
+
+    if (error) {
+      throw error;
     }
 
-    const parsedTasks = await response.json();
-    tasks = Array.isArray(parsedTasks) ? parsedTasks : [];
+    tasks = (Array.isArray(data) ? data : []).map(normalizeTask);
   } catch (error) {
-    console.error('Помилка читання задач з сервера:', error);
+    console.error('Помилка читання задач з Supabase:', error);
     tasks = [];
   }
 }
 
 async function saveTasks() {
-  const payload = JSON.stringify(tasks, null, 2);
+  if (!supabase) {
+    return;
+  }
 
   try {
-    const response = await fetch(STORAGE_PATH, {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: payload
-    });
+    const rows = tasks.map((task) => ({
+      id: task.id,
+      description: task.description,
+      scheduled_at: task.scheduledAt,
+      completed: task.completed,
+    }));
 
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}`);
+    const { error } = await supabase.from('tasks').upsert(rows, { onConflict: 'id' });
+
+    if (error) {
+      throw error;
     }
   } catch (error) {
-    console.error('Помилка збереження задач на сервері:', error);
+    console.error('Помилка збереження задач в Supabase:', error);
+  }
+}
+
+async function deleteTask(taskId) {
+  if (!supabase) {
+    return;
+  }
+
+  try {
+    const { error } = await supabase.from('tasks').delete().eq('id', taskId);
+
+    if (error) {
+      throw error;
+    }
+  } catch (error) {
+    console.error('Помилка видалення задачі:', error);
   }
 }
 
@@ -183,7 +227,7 @@ function getFilteredTasks() {
   const filterValue = statusFilter.value;
 
   return tasks.filter((task) => {
-    const matchesSearch = task.description.toLowerCase().includes(searchTerm);
+    const matchesSearch = String(task.description ?? '').toLowerCase().includes(searchTerm);
     const matchesFilter =
       filterValue === 'all' ||
       (filterValue === 'active' && !task.completed) ||
@@ -255,7 +299,7 @@ function startEditing(taskId) {
   descriptionInput.focus();
 }
 
-form.addEventListener('submit', (event) => {
+form.addEventListener('submit', async (event) => {
   event.preventDefault();
 
   const description = descriptionInput.value.trim();
@@ -276,11 +320,11 @@ form.addEventListener('submit', (event) => {
       id: createId(),
       description,
       scheduledAt,
-      completed: false
+      completed: false,
     });
   }
 
-  saveTasks();
+  await saveTasks();
   resetFormState();
   renderApp();
 });
@@ -288,7 +332,7 @@ form.addEventListener('submit', (event) => {
 searchInput.addEventListener('input', renderTasks);
 statusFilter.addEventListener('change', renderTasks);
 
-clearAllButton.addEventListener('click', () => {
+clearAllButton.addEventListener('click', async () => {
   if (!tasks.length) {
     return;
   }
@@ -299,12 +343,12 @@ clearAllButton.addEventListener('click', () => {
   }
 
   tasks = [];
-  saveTasks();
+  await saveTasks();
   resetFormState();
   renderApp();
 });
 
-tasksBody.addEventListener('click', (event) => {
+tasksBody.addEventListener('click', async (event) => {
   const actionButton = event.target.closest('button[data-action]');
   if (!actionButton) {
     return;
@@ -314,7 +358,7 @@ tasksBody.addEventListener('click', (event) => {
 
   if (action === 'delete-task') {
     tasks = tasks.filter((task) => task.id !== id);
-    saveTasks();
+    await deleteTask(id);
 
     if (editingTaskId === id) {
       resetFormState();
@@ -328,7 +372,7 @@ tasksBody.addEventListener('click', (event) => {
   }
 });
 
-tasksBody.addEventListener('change', (event) => {
+tasksBody.addEventListener('change', async (event) => {
   const checkbox = event.target.closest('input[data-action="toggle-complete"]');
   if (!checkbox) {
     return;
@@ -340,7 +384,7 @@ tasksBody.addEventListener('change', (event) => {
   }
 
   task.completed = checkbox.checked;
-  saveTasks();
+  await saveTasks();
   renderApp();
 });
 
@@ -348,6 +392,13 @@ cancelEditButton.addEventListener('click', () => {
   resetFormState();
 });
 
-loadTasks().then(() => {
-  renderApp();
-});
+if (!supabaseUrl || !supabaseAnonKey) {
+  console.error('Missing environment variables: VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY');
+  tasksBody.innerHTML = `
+    <div class="empty-row">Налаштуйте Supabase env vars у Vercel: VITE_SUPABASE_URL і VITE_SUPABASE_ANON_KEY.</div>
+  `;
+} else {
+  loadTasks().then(() => {
+    renderApp();
+  });
+}
