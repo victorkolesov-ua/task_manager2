@@ -122,7 +122,7 @@ async function loadTasks() {
   }
 
   try {
-    const { data, error } = await supabase.from('tasks').select('*');
+    const { data, error } = await supabase.from('tasks').select('id, description, scheduled_at, completed').eq('is_deleted', false).order('scheduled_at', { ascending: true });
 
     if (error) {
       throw error;
