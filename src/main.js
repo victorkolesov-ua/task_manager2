@@ -158,6 +158,22 @@ async function saveTasks() {
   }
 }
 
+async function DB_Hide_Task(taskId) {
+  if (!supabase) {
+    return;
+  }
+
+  try {
+    const { error } = await supabase.from('tasks').update({ is_deleted: true }).eq('id', taskId);
+
+    if (error) {
+      throw error;
+    }
+  } catch (error) {
+    console.error('Помилка видалення(приховання) задачі:', error);
+  }
+}
+
 async function deleteTask(taskId) {
   if (!supabase) {
     return;
@@ -358,7 +374,7 @@ tasksBody.addEventListener('click', async (event) => {
 
   if (action === 'delete-task') {
     tasks = tasks.filter((task) => task.id !== id);
-    await deleteTask(id);
+    await DB_Hide_Task(id);
 
     if (editingTaskId === id) {
       resetFormState();
